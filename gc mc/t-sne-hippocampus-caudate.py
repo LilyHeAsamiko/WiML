@@ -355,23 +355,28 @@ for col in range(2, Col):
         C = abs(Cluster[i_S, :, :, Step[col_S,i_S]]) 
         C[C==0] = 100
         C = np.argmin(C, axis =1)
+        C = C/max(C)
 # [XX,YY] = np.sort(np.meshgrid(np.array(dataset[i_S,], dtype = int),np.array(dataset[:,i_S], dtype = int).T))
         plt.figure(),
         plt.subplot(111)
-        plt.scatter(dataset[i_S,], dataset[i_S+1,], c = C)
+        plt.scatter(dataset[i_S,], dataset[i_S+1,], c = C, cmap = 'coolwarm')
         plt.show()
         plt.savefig('custer_%d.png' % np.int32(col*(col_S-1)+i_S))
 
 
             
     Np = np.array(Np, dtype = 'int32')
+    KL[KL == 0]=0.5
+    SS[SS == 0]=0.5
     KL_col = np.argmin(KL, axis = 2)
     SS_col = np.argmin(SS, axis = 2)
+    KL_col[KL_col == 0]=np.max(KL_col)
+    SS_col[SS_col == 0]=np.max(SS_col)
     plt.figure,
     plt.subplot(211)
-    plt.plot(np.linspace(KL_col, np.size(KL[Np[KL_col, min(Step[KL_col,])], :, KL_col, min(Step[KL_col,])]), np.size(KL[Np[KL_col, min(Step[KL_col,])], :, 0, min(Step[KL_col,])])), KL[Np[KL_col, min(Step[KL_col,])], :, KL_col, min(Step[KL_col,])])    
+    plt.plot(np.linspace(KL_col, np.size(KL[Np[i_S, np.min(KL_col)], 0:16, np.min(Step[KL_col,])], np.size(KL[Np[i_S, np.min(KL_col)], 0:16, np.min(Step[KL_col,])]), KL[Np[i_S, np.min(KL_col)], 0:16, np.min(Step[KL_col,])])    
     plt.subplot(212)
-    plt.plot(np.linspace(SS_col, np.size(SS[Np[SS_col, min(Step[SS_col,])], :, SS_col, min(Step[SS_col,])]), np.size(SS[Np[SS_col, min(Step[SS_col,])], :, 0, min(Step[SS_col,])])), SS[Np[SS_col, min(Step[SS_col,])], :, SS_col, min(Step[SS_col,])])
+    plt.plot(np.linspace(SS_col, np.size(SS[Np[i_S, np.min(SS_col)], 0:16, np.min(Step[SS_col,])], np.size(KL[Np[i_S, np.min(KL_col)], 0:16, np.min(Step[KL_col,])]), SS[Np[i_S, np.min(SS_col)], 0:16, np.min(Step[SS_col,])])
     
     
 #    C = abs(Cluster[:,:,0,0])/np.max(abs(Cluster[:,:,0,0]))
