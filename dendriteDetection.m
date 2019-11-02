@@ -3,7 +3,6 @@ format longG
 I = imread('2891.jpg');
 I1 = imread('2986.jpg');
 I_ = I ;
-I0 = zeros(size(I));
 imshow(I,[])
 [m, n, k] = size(I);
 
@@ -38,6 +37,7 @@ winL2d = uint32(floor(n/bd));
 %    max(Imaxx);..................................................................................................-------------------------------------------------------------------------------------------------------------------------------------.......................................................................................................................................................................................................................................................................................................................................................................
 %    indy = find(Imaxx == max(Imaxx));
     I11 = I_(:, :, 1);
+    I0 = zeros(size(I11));
 %    threshold = 0.8*max(max(I11)); % Imaxy*0.05;
     lt =  0.8*(max(max(I11)));%max(max(I_))*0.05;
     
@@ -79,7 +79,7 @@ N = 50;
 % sum(mean(F>0==(Y==1),1))
 % sum(mean(F>mean(F,1)==(Y==1),1))
 % sum(mean(abs(repmat(1,[1,Nn])./(1+exp(-F*Nn)))>0.5==(Y==1),1))
-F(abs(repmat(1,[1,Nn])./(1+exp(-F*Nn)))>0.5)= 1;
+F(abs(repmat(1,[1,Nn])./(1+exp(-F/Nn)))>0.5)= 1;
 F(abs(repmat(1,[1,Nn])./(1+exp(-F/Nn)))<0.5)= 0;
 %F(F>=0)= 1;
 %F(F<0)= 0;
@@ -125,7 +125,6 @@ train = reshape(train, 515,650);
 YPRED(YPRED == 1) = 255;
 YPRED = reshape(YPRED, 515,650);
 
-
 figure,
 subplot(2,2,1)
 imshow(imresize(I,0.5),[])
@@ -163,6 +162,138 @@ c1 = cluster(Z, "maxclust",6, 'Depth',8);
 crosstab(c1)
 cutoff = median([Z(end-5,3) Z(end-4,3) Z(end-3,3) Z(end-2,3) Z(end-1,3)]);
 dendrogram(Z,'ColorThreshold',cutoff)
+
+%Relu SITF  
+idN = 4;
+eta =0.01;
+w =1 /(idN+1);
+[ctx, cty] = find(I0 > 0);
+steps = 50;  
+L = repmat(-100,[9, 1]);
+l = zeros(9, length(ctx));
+W = zeros(9, length(ctx));
+B = zeros(9, length(ctx));
+F_= zeros(9, length(ctx));
+Mu = zeros(length(ctx), 1);
+Eta = zeros(idN, idN);
+Kse = zeros(idN, idN);
+    for k = 1:length(ctx)
+%    k = 1;
+%    for k = 1:length(ctx)
+%    for k = 1:7
+%    for k = 59:length(ctx) 
+%for k = 54:length(ctx) 
+        while steps >0
+            Itemp= I0(max(ctx(k)-1, 1):min(ctx(k)+1, m),max(cty(k)-1, 1):min(cty(k)+1, n)); 
+            mu = mean(Itemp(:));
+            sigma2 = var(Itemp(:)); 
+            sigma = sqrt(sigma2);
+            F_hat = (Itemp(:)-mu)/sqrt(sigma2+0.000001);
+            F_(:, k) = sigma.*F_hat + mu;
+            w = ones(length(F_(:, k)),1)./(1 + exp(-F_(:, k)));
+            b = ones(length(F_(:, k)),1)./(1 + exp(-F_(:, k) - sigma.*F_hat));
+            w = w/(sum(w)+0.000001);
+            wd = 1+exp(-F_);
+            wd(isinf(wd)) = 10000;
+            w = w + mu*F_hat.*wd.^2./(exp(-F_(:, k)).*F_+0.00001);
+            b = b + mu*F_hat.*wd.^2./(exp(-F_(:, k)-sigma.*F_hat).*F_+0.00001); 
+            l(1:length(real(-F_hat.*log(F_(:, k)+0.000001))), k) = real(-F_hat.*log(F_(:, k)+0.000001));
+%            L = real(-F_hat.*log(F_+0.000001));
+            wt = w(real(-F_hat.*log(F_(:, k)+0.000001))> L);
+            bt = b(real(-F_hat.*log(F_(:, k)+0.000001))> L);
+            if sum(isnan(wt))~= length(wt) & sum(wt==0)~= length(wt)
+                W(real(-F_hat.*log(F_(:, k)+0.000001))> L, k) = wt;
+            end
+            if sum(isnan(bt))~= length(bt) & sum(bt==0)~= length(bt)
+                B(real(-F_hat.*log(F_(:, k)+0.000001))> L, k) = bt;
+            end
+            if (sum(isnan(wt))== length(wt) | sum(wt==0)== length(wt)) & (sum(isnan(bt))== length(bt) | sum(bt==0)== length(bt))
+%                k = k+1;
+                step = 50;
+                break;
+            end
+            Mu(k)=  mean(W(:, k).*F_(:, k) + B(:, k));
+            L = real(-F_hat.*log(F_(:, k)+0.000001));
+            steps = steps -1;
+            if steps == 0
+%                k = k+1;
+                step = 50;
+                break;
+            end
+        end
+        if k > length(ctx)
+            break
+        end
+        
+end
+%     W(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = w(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
+%     B(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = b(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
+%     F_ = real(-log(ones(size(W))./W));
+%     l =real( (W-B)./F_.*log(F_));
+%     l = l(:);
+%     l(isnan(l))=0;
+%     l = reshape( l, size(F_));
+%     W = W(:);
+%     W(isnan(W))=0;
+%     W = reshape( W, size(l));
+%     B = B(:);
+%     B(isnan(B))=0;
+%     B = reshape( B, size(W));
+%     Mu = mean(W.*F_ + B);
+%     l = Mu.*log(F_);
+
+
+    Mu = (Mu-mean(Mu))/std(Mu);
+    Mup = ones(length(Mu),1)./(1+exp(-Mu'));
+    cond1 = Mup~=0;
+    [l_s, l_i] = sort(l(sum(W~= 0,1)~=0&sum(B~=0,1)~=0&cond1'));
+    K = zeros(size(W,1), idN);
+    K(2:size(W,1),: ) = eta*abs((W(2: size(W,1), ctx(l_i(length(l_i)-idN+1:length(l_i)))) - W(1: size(W,1)-1, ctx(l_i(length(l_i)-idN+1:length(l_i)))))./(W(2: size(W,1), ctx(l_i(length(l_i)-idN+1:length(l_i)))) - W(1: size(W,1)-1, ctx(l_i(length(l_i)-idN+1:length(l_i))))+0.00001));
+    for i = 1: length(ctx)
+        j= ctx(l_i(length(l_i)-idN+1:length(l_i)));
+%        for j1 = ctx(l_i(length(l_i)-idN+1:length(l_i)))
+         for j1 = 1:length(j)
+            for j2 =  1:length(j)
+                delta(j1, j2) = sqrt(mean((abs(Mup(i)-Mup(j1))-abs(Mup(i)-Mup(j2))).^2));  
+                phi = K(:,c1) + K(:,c2).*Mup(j1).*Mup(j2);
+                psi = mean(var(B)+var(W).*(var(B)+var(W)/9))/(2*pi).*(sin(acos(cov(Mup(j1),Mup(j2))))+cov(Mup(j1),Mup(j2)).*(pi-acos(cov(Mup(j1),Mup(j2)))));
+            end 
+        end
+    end
+    Eta = delta - max(mean(delta));
+    Kse = cov(delta);
+%end
+ phi1 = exp(-(Eta).^2./(2*max(Kse)));  
+ phi2 = 2*sum(exp(-(Eta).^2./(2*max(Kse))));  
+ 
+ figure,
+ subplot(2,2,1)
+ imagesc( Eta)
+ title('Eta')
+ colorbar
+ subplot(2,2,2)
+ imagesc( Kse) 
+ title('Kse')
+ colorbar
+ for i = 1:size(phi1,2)
+    phi1s(:,i) = ones(size(phi1, i),1)./(1+exp(-phi1(:, i)));
+ end
+ subplot(2,2,3)
+ plot(phi1s(:,2:4))
+ title('ph1')
+  subplot(2,2,4)
+ plot( phi2,'o')
+ title('ph2')
+
+%     for i = 1: length(ctx)
+%         for ji= 1:length(ctx)
+%             for ji2 = 1:length(ctx)
+%                 delta(j1, j2) = sqrt(mean(abs(Mu(ctx(i))-Mu(ctx(i)))-abs(Mu(ctx(i))-Mu(ctx(j2))).^2));               
+%             end 
+%         end
+%     end
+%     
+
 
 % T = cluster(Z,'cutoff',3,'Depth',4);
 % gscatter(X(:,1),X(:,2),T)
