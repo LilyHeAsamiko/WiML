@@ -177,8 +177,8 @@ F_= zeros(9, length(ctx));
 Mu = zeros(length(ctx), 1);
 Eta = zeros(idN, idN);
 Kse = zeros(idN, idN);
-    for k = 1:length(ctx)
-%    k = 1;
+%    for k = 1:length(ctx)
+    k = 1;
 %    for k = 1:length(ctx)
 %    for k = 1:7
 %    for k = 59:length(ctx) 
@@ -207,46 +207,49 @@ Kse = zeros(idN, idN);
             if sum(isnan(bt))~= length(bt) & sum(bt==0)~= length(bt)
                 B(real(-F_hat.*log(F_(:, k)+0.000001))> L, k) = bt;
             end
-            if (sum(isnan(wt))== length(wt) | sum(wt==0)== length(wt)) & (sum(isnan(bt))== length(bt) | sum(bt==0)== length(bt))
-%                k = k+1;
-                step = 50;
-                break;
-            end
             Mu(k)=  mean(W(:, k).*F_(:, k) + B(:, k));
             L = real(-F_hat.*log(F_(:, k)+0.000001));
+            if (sum(isnan(wt))== length(wt) | sum(wt==0)== length(wt)) & (sum(isnan(bt))== length(bt) | sum(bt==0)== length(bt))
+                k = k+1;
+                step = 50;
+%                break;
+            end
             steps = steps -1;
             if steps == 0
-%                k = k+1;
+                k = k+1;
                 step = 50;
+%                break;
+            end
+            if k > length(ctx)
                 break;
             end
         end
-        if k > length(ctx)
-            break
-        end
+%        if k > length(ctx)
+%            break;
+%        end
         
-end
-%     W(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = w(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
-%     B(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = b(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
+%end
+     W(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = w(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
+     B(real(-F_hat.*log(F_(:, k)+0.000001))> L , :) = b(real(-F_hat.*log(F_(:, k)+0.000001))> L,:);
 %     F_ = real(-log(ones(size(W))./W));
 %     l =real( (W-B)./F_.*log(F_));
 %     l = l(:);
 %     l(isnan(l))=0;
 %     l = reshape( l, size(F_));
-%     W = W(:);
-%     W(isnan(W))=0;
-%     W = reshape( W, size(l));
-%     B = B(:);
-%     B(isnan(B))=0;
-%     B = reshape( B, size(W));
-%     Mu = mean(W.*F_ + B);
-%     l = Mu.*log(F_);
+     W = W(:);
+     W(isnan(W))=0;
+     W = reshape( W, size(l));
+     B = B(:);
+     B(isnan(B))=0;
+     B = reshape( B, size(W));
+     Mu = mean(W.*F_ + B);
+     l = Mu.*log(F_);
 
 
     Mu = (Mu-mean(Mu))/std(Mu);
     Mup = ones(length(Mu),1)./(1+exp(-Mu'));
-    cond1 = Mup~=0;
-    [l_s, l_i] = sort(l(sum(W~= 0,1)~=0&sum(B~=0,1)~=0&cond1'));
+    cond1 = sum(Mup~=0)~=  0;
+    [l_s, l_i] = sort(l(sum(W~= 0,1)~=0&sum(B~=0,1)~=0&cond1));
     K = zeros(size(W,1), idN);
     K(2:size(W,1),: ) = eta*abs((W(2: size(W,1), ctx(l_i(length(l_i)-idN+1:length(l_i)))) - W(1: size(W,1)-1, ctx(l_i(length(l_i)-idN+1:length(l_i)))))./(W(2: size(W,1), ctx(l_i(length(l_i)-idN+1:length(l_i)))) - W(1: size(W,1)-1, ctx(l_i(length(l_i)-idN+1:length(l_i))))+0.00001));
     for i = 1: length(ctx)
@@ -255,7 +258,7 @@ end
          for j1 = 1:length(j)
             for j2 =  1:length(j)
                 delta(j1, j2) = sqrt(mean((abs(Mup(i)-Mup(j1))-abs(Mup(i)-Mup(j2))).^2));  
-                phi = K(:,c1) + K(:,c2).*Mup(j1).*Mup(j2);
+                phi = K(:,j1) + K(:,j2).*Mup(j1).*Mup(j2);
                 psi = mean(var(B)+var(W).*(var(B)+var(W)/9))/(2*pi).*(sin(acos(cov(Mup(j1),Mup(j2))))+cov(Mup(j1),Mup(j2)).*(pi-acos(cov(Mup(j1),Mup(j2)))));
             end 
         end
@@ -283,56 +286,91 @@ end
  title('ph1')
   subplot(2,2,4)
  plot( phi2,'o')
- title('ph2')
+ title('ph2') 
+ 
 
-%     for i = 1: length(ctx)
-%         for ji= 1:length(ctx)
-%             for ji2 = 1:length(ctx)
-%                 delta(j1, j2) = sqrt(mean(abs(Mu(ctx(i))-Mu(ctx(i)))-abs(Mu(ctx(i))-Mu(ctx(j2))).^2));               
-%             end 
-%         end
-%     end
-%     
+% logistic regression with regulation
+idN = 4;
+epsl =0.01;
+w = ones(9, 1)./9;
+lmd = w;
+[ctx, cty] = find(I0 > 0);
+steps = 50;  
+L = repmat(-100,[9, 1]);
+l = zeros(9, length(ctx));
+ypred = zeros(1, length(ctx));
+Ipred = zeros(size(I0));
+W = zeros(9, length(ctx));
+% B = zeros(9, length(ctx));
+% F_= zeros(9, length(ctx));
+% Mu = zeros(length(ctx), 1);
+% Eta = zeros(idN, idN);
+% Kse = zeros(idN, idN);
+y = I0;
+y(I11== max(max(I11))) = 1;
+y(I11~= max(max(I11))) = -1;
+    for k = 1:length(ctx)
+%    k = 1;
+%    for k = 1:length(ctx)
+%    for k = 1:7
+%    for k = 59:length(ctx) 
+%for k = 54:length(ctx) 
+        while steps >0
+            Itemp= I0(max(ctx(k)-1, 1):min(ctx(k)+1, m),max(cty(k)-1, 1):min(cty(k)+1, n)); 
+            Itemp = (Itemp - mean(mean(Itemp)))/std(mean(Itemp));
+            Y = y(max(ctx(k)-1, 1):min(ctx(k)+1, m),max(cty(k)-1, 1):min(cty(k)+1, n));
+            b = gampdf(Itemp(:), 0.2, 2);
+%             b = ones(length(F_(:, k)),1)./(1 + exp(-F_(:, k) - sigma.*F_hat));
+%             w = w/(sum(w)+0.000001);
+%             wd = 1+exp(-F_);
+%             wd(isinf(wd)) = 10000;
+%             w = w + mu*F_hat.*wd.^2./(exp(-F_(:, k)).*F_+0.00001);
+%             b = b + mu*F_hat.*wd.^2./(exp(-F_(:, k)-sigma.*F_hat).*F_+0.00001);   
+            K =  abs( Itemp(:)); 
+            l(1:length(K), k) = log(1 + exp(-Y(:) .* w(1:length(K)).* Itemp(:))) + lmd(1:length(K)).*w(1:length(K)).^2/2 + 2*K.*b.* Itemp(:)./(epsl*length(K));
+            cond = log(1 + exp(-Y(:) .* w(1:length(K)).* Itemp(:))) + lmd(1:length(K)).*w(1:length(K)).^2/2 + 2*K.*b.* Itemp(:)./(epsl*(1:length(K)))> L(1:length(K));
+            if sum(isnan(cond))~= length(cond) & sum(cond==0)~= length(cond)
+                W(1:length(K),k) = -Y(:) .*Itemp(:)./(1 + exp(-Y(:) .* w(1:length(K)).* Itemp(:)));
+            end
+            if (sum(isnan(cond))== length(cond) | sum(cond==0)== length(cond)) 
+                k = k+1;
+                steps = 50;
+                break;
+            end
+            w = W(:, k);
+            L = log(1 + exp(-Y(:) .* w(1:length(K)).* Itemp(:))) + lmd.*w(1:length(K)).^2/2 + 2.*K.*b(1:length(K)).* Itemp(:)./(epsl*(1:length(K)));
+            steps = steps -1;
+            if steps == 0
+                l(isnan(l(:,k)),k) = 0.5*l(isnan(l(:,k)),max(k-1,1))+0.5*l(isnan(l(:,k)),min(k+1,n));
+                l(sum(isnan(l(:,k)))==size(l,1),k) = 0.5*l(sum(isnan(l(:,k)))==size(l,1),max(k-1,1))+0.5*l(sum(isnan(l(:,k)))==size(l,1),min(k+1,n));
+                ypred(1,k) = mean(l(l(:,k)~=0,k));
+                k = k+1;
+                steps = 50;
+                Ipred(ctx(k),cty(k)) = mean(L(L>0));
+                break;
+            end
+%             if k > length(ctx)
+%                  break
+%             end
+         end
+         if k > length(ctx)
+             break
+         end
+    end
+    l
+ for i = 468: 462: 5077-461  ypred(1,i:i+461) = ypred(1, 1:462); end;
+ 
+ Ipred(ctx(ypred~=0),cty(ypred~=0)) = I11(ctx(ypred~=0),cty(ypred~=0));
 
+ figure,
+ imshow(Ipred,[])
+ title('predicted cellls')
 
-% T = cluster(Z,'cutoff',3,'Depth',4);
-% gscatter(X(:,1),X(:,2),T)
+ accuracy = sum(sum(Ipred == I11))./(m*n);
 
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
-lastTen =
-
-                     10078                     10142          48.8455781823415
-                     10123                     10143          54.4532826313052
-                     10138                     10144          57.2559115762243
-                      8753                     10145          99.8121730860675
-                     10134                     10146          105.358383534137
-                      9959                     10110            110.8836996337
-                     10135                     10148          201.435291270902
-                     10140                     10150          334.881857914797
-                     10147                     10151           430.87552374308
-                     10149                     10152          688.663277943107
-
-ans =
-
-           1
-        1373
-        2180
-        1408
-         115
-
-
-ans =
-
-           1
-          24
-          91
-         837
-        1343
-        1373
-        1408
-
-}%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 function S = features(Matrix)
 [m, n] = size(Matrix);
 S=sum(sum(repmat(1/(m*n),[m,n]).*Matrix));
